@@ -64,6 +64,10 @@ REST_FRAMEWORK = {
     ),
 }
 
+AUTHENTICATION_BACKENDS = [
+    'users.backends.UserModelBackend'
+]
+
 ROOT_URLCONF = 'disease_tracker.urls'
 
 TEMPLATES = [

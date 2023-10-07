@@ -3,19 +3,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, login
 from .serializers import UserSerializer
-from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.hashers import make_password
-from django.shortcuts import get_object_or_404
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
 
     def enforce_csrf(self, request):
-        return  # To not perform the csrf check previously happening
+        return
 
 
 class UserRegistrationView(APIView):
@@ -59,10 +54,7 @@ class UserUpdateView(APIView):
 
     def put(self, request):
         user = request.user
-        print(user)
-        if 'password' in request.data:
-            request.data['password'] = make_password(request.data['password'])
-        serializer = UserSerializer(user, data=request.data)
+        serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
