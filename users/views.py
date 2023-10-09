@@ -8,6 +8,7 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 from django_otp.oath import totp
 from django_otp.util import random_hex
 from datetime import datetime, timedelta
+from disease_tracker.tasks import send_otp_email
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -41,6 +42,7 @@ class UserLoginGetOTPView(APIView):
             request.session['otp_secret'] = otp_secret
             # request.session['otp_expiration'] = datetime.now() + timedelta(minutes=5)
             request.session['otp_expiration'] = (datetime.now() + timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
+            send_otp_email.delay(user.email)
             return Response({'message': 'OTP generated'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
