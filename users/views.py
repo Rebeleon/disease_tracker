@@ -2,13 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, login
-from .serializers import UserSerializer
+from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from django_otp.oath import totp
 from django_otp.util import random_hex
 from datetime import datetime, timedelta
+from .serializers import UserSerializer
 from disease_tracker.tasks import send_otp_email
+
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -40,9 +42,9 @@ class UserLoginGetOTPView(APIView):
             otp = totp(key=bytes.fromhex(otp_secret), step=300)
             request.session['otp'] = otp
             request.session['otp_secret'] = otp_secret
-            # request.session['otp_expiration'] = datetime.now() + timedelta(minutes=5)
-            request.session['otp_expiration'] = (datetime.now() + timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
-            send_otp_email.delay(user.email)
+            request.session['otp_expiration'] = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+            request.session['user_id'] = user.id
+            send_otp_email.delay(user.email, otp)
             return Response({'message': 'OTP generated'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -53,15 +55,21 @@ class UserLoginView(APIView):
 
     def post(self, request):
         otp = request.data.get('otp')
-        saved_otp = request.session.get('otp')
-        otp_expiration_str = request.session.get('otp_expiration')
-        otp_expiration = datetime.strptime(otp_expiration_str, '%Y-%m-%d %H:%M:%S')
+        try:
+            saved_otp = request.session.get('otp')
+            otp_expiration_str = request.session.get('otp_expiration')
+            # otp_expiration_str = ''
+            otp_expiration = datetime.strptime(otp_expiration_str, '%Y-%m-%d %H:%M:%S')
+        except (AttributeError, ValueError, TypeError):
+            return Response({'message': 'First login'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if otp == saved_otp:
             if otp_expiration < datetime.now():
                 return Response({'message': 'OTP expired'}, status=400)
-            user = request.user
+            user_id = request.session.get('user_id')
+            user = User.objects.get(id=user_id)
             login(request, user)
+            request.session['otp'] = ''
             return Response({'message': 'OTP verified successfully and user logged in'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
