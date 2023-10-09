@@ -56,7 +56,7 @@ MIDDLEWARE = [
 
 # CSRF_USE_SESSIONS = True
 
-
+# DRF
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
@@ -64,9 +64,14 @@ REST_FRAMEWORK = {
     ),
 }
 
+# Change auth strategy, username: username | email
 AUTHENTICATION_BACKENDS = [
     'users.backends.UserModelBackend'
 ]
+
+# Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 ROOT_URLCONF = 'disease_tracker.urls'
 
